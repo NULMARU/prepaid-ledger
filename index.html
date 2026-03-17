@@ -44,6 +44,21 @@
 .mgr-dept{font-size:15px;flex:1}
 .mgr-count{font-size:13px;color:var(--muted);font-weight:600}
 .mgr-body{padding:0 0 4px 24px}
+.pin-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:var(--bg)}
+.pin-title{font-size:22px;font-weight:800;margin-bottom:4px;color:var(--text)}
+.pin-sub{font-size:14px;color:var(--muted);margin-bottom:24px;text-align:center;line-height:1.5}
+.pin-dots{display:flex;gap:12px;margin-bottom:28px}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);background:#fff;transition:background .15s,border-color .15s}
+.pin-dot.filled{background:var(--primary);border-color:var(--primary)}
+.pin-dot.error{background:var(--danger);border-color:var(--danger)}
+.pin-pad{display:grid;grid-template-columns:repeat(3,72px);gap:10px;justify-content:center}
+.pin-key{width:72px;height:72px;border-radius:50%;background:#fff;border:1.5px solid var(--line);font-size:24px;font-weight:700;display:flex;align-items:center;justify-content:center;min-height:auto;transition:background .1s}
+.pin-key:active{background:var(--primary-soft)}
+.pin-key.fn{background:none;border:none;font-size:14px;color:var(--muted);font-weight:600}
+.pin-key.fn:active{background:var(--bg)}
+.pin-msg{margin-top:16px;font-size:13px;color:var(--danger);text-align:center;min-height:20px}
+.pin-reset{margin-top:20px;text-align:center}
+.pin-reset button{min-height:auto;padding:8px 16px;font-size:13px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:8px}
 @media(max-width:640px){.quick{grid-template-columns:1fr}.actions button,.modal-actions button{min-width:100%}.summary,.txn-top,.receipt-row,.row,.group-head{display:grid}.tool{width:100%}.tool button{flex:1}}
 </style>
 </head>
@@ -57,7 +72,7 @@
 const APP='선입금대장',APP_VERSION='2.0.0',DB='prepaid-ledger-db',VER=2,LOCAL='prepaid-ledger-local',now=()=>Date.now(),qs=i=>document.getElementById(i);
 const DEFAULT_ORG='광진구청';
 const DEFAULT_DEPTS=['구민','구청장','부구청장','감사담당관','홍보담당관','행정지원국','행정지원과','자치행정과','민원여권과','재무과','스마트정보과','기획경제국','기획예산과','지역경제과','일자리청년과','세무1과','세무2과','문화교육국','문화예술과','체육진흥과','교육지원과','평생교육과','복지국','복지정책과','사회복지장애인과','어르신복지과','가정복지과','아동청소년과','안전환경국','도시안전과','청소과','환경과','가로경관과','미래도시국','주택과','주거사업과','도시계획과','건축과','부동산정보과','교통건설국','교통행정과','교통지도과','도로과','치수과','공원녹지과','보건소','보건정책과','보건위생과','보건의료과','건강관리과','보건지소','동주민센터','중곡1동','중곡2동','중곡3동','중곡4동','능동','구의1동','구의2동','구의3동','광장동','자양1동','자양2동','자양3동','자양4동','화양동','군자동'];
-const state={loaded:false,mode:'준비 중',screen:'home',search:'',historyEmployeeId:'',modal:null,toast:'',toastTimer:null,busy:'',expandedDepts:{},data:{employees:[],transactions:[],meta:{lastBackupAt:null,orgName:DEFAULT_ORG,departments:[...DEFAULT_DEPTS]}}};
+const state={loaded:false,mode:'준비 중',screen:'home',search:'',historyEmployeeId:'',modal:null,toast:'',toastTimer:null,busy:'',expandedDepts:{},pinLocked:true,pinInput:'',pinFails:0,pinMode:'',pinSetup1:'',pinMsg:'',data:{employees:[],transactions:[],meta:{lastBackupAt:null,orgName:DEFAULT_ORG,departments:[...DEFAULT_DEPTS]}}};
 let repo,signPad=null;
 document.addEventListener('click',onClick);document.addEventListener('input',onInput);document.addEventListener('change',onInput);qs('restoreFile').addEventListener('change',onRestoreFile);qs('csvFile').addEventListener('change',onCsvFile);
 let composing=false;document.addEventListener('compositionstart',()=>{composing=true});document.addEventListener('compositionend',(e)=>{composing=false;onInput(e)});
@@ -98,8 +113,44 @@ function clearBusy(){state.busy=''}
 function field(id,label,value,ph,type){return `<div class="field"><label for="${id}">${esc(label)}</label><input id="${id}" type="${type||'text'}" value="${esc(value)}" placeholder="${esc(ph||'')}"></div>`}
 function deptField(id,label,value,ph){const depts=state.data.meta.departments||[];const chips=depts.map(d=>`<span class="dept-pick${value===d?' on':''}" data-a="pick-dept" data-dept="${esc(d)}">${esc(d)}</span>`).join('');return `<div class="field"><label for="${id}">${esc(label)}</label><input id="${id}" value="${esc(value)}" placeholder="${esc(ph||'')}"><div class="dept-picks">${chips}</div></div>`}
 
+// ── PIN 잠금 화면 ──
+function pinScreenHtml(){
+const hasPin=!!state.data.meta.pinHash;
+const isSetup=!hasPin||state.pinMode==='change';
+const step=isSetup?(state.pinSetup1?'confirm':'new'):'unlock';
+const titles={new:'비밀번호 설정',confirm:'비밀번호 확인',unlock:'비밀번호 입력'};
+const subs={new:'숫자 4자리를 입력하세요',confirm:'한번 더 입력하세요',unlock:'비밀번호를 입력하세요'};
+const dots=[0,1,2,3].map(i=>`<div class="pin-dot${i<state.pinInput.length?' filled':''}${state.pinMsg&&state.pinMsg.includes('틀렸습니다')?' error':''}"></div>`).join('');
+const keys=[1,2,3,4,5,6,7,8,9].map(n=>`<button class="pin-key" data-a="pin-key" data-key="${n}">${n}</button>`).join('');
+const resetBtn=state.pinFails>=5?`<div class="pin-reset"><div style="color:var(--danger);font-size:13px;margin-bottom:8px">5회 이상 실패했습니다</div><button data-a="pin-reset">비밀번호 초기화</button><div style="font-size:11px;color:var(--muted);margin-top:6px">초기화하면 비밀번호가 삭제됩니다.<br>데이터는 유지됩니다.</div></div>`:'';
+return `<div class="pin-screen"><div class="pin-title">${titles[step]}</div><div class="pin-sub">${subs[step]}</div><div class="pin-dots">${dots}</div><div class="pin-pad">${keys}<button class="pin-key fn" data-a="pin-key" data-key="back">←</button><button class="pin-key" data-a="pin-key" data-key="0">0</button><button class="pin-key fn" data-a="pin-key" data-key="clear">C</button></div><div class="pin-msg">${esc(state.pinMsg)}</div>${resetBtn}</div>`}
+
+async function handlePinKey(key){
+if(key==='clear'){state.pinInput='';state.pinMsg='';render();return}
+if(key==='back'){state.pinInput=state.pinInput.slice(0,-1);state.pinMsg='';render();return}
+if(state.pinInput.length>=4)return;
+state.pinInput+=key;state.pinMsg='';render();
+if(state.pinInput.length<4)return;
+const pin=state.pinInput;const hasPin=!!state.data.meta.pinHash;
+const isSetup=!hasPin||state.pinMode==='change';
+if(isSetup){
+if(!state.pinSetup1){state.pinSetup1=pin;state.pinInput='';render();return}
+if(state.pinSetup1!==pin){state.pinSetup1='';state.pinInput='';state.pinMsg='비밀번호가 일치하지 않습니다. 다시 설정하세요.';render();return}
+const h=await hash(pin);state.data.meta.pinHash=h;await repo.apply({meta:{pinHash:h}});
+state.pinInput='';state.pinSetup1='';state.pinMode='';state.pinLocked=false;state.pinFails=0;state.pinMsg='';render();toast('비밀번호가 설정되었습니다.')
+}else{
+const h=await hash(pin);
+if(h===state.data.meta.pinHash){state.pinInput='';state.pinLocked=false;state.pinFails=0;state.pinMsg='';render()}
+else{state.pinFails++;state.pinInput='';state.pinMsg=`비밀번호가 틀렸습니다. (${state.pinFails}회)`;render()}}}
+
+async function pinReset(){if(!window.confirm('비밀번호를 초기화하시겠습니까?\n\n비밀번호가 삭제되고 새로 설정할 수 있습니다.\n저장된 데이터는 그대로 유지됩니다.'))return;
+state.data.meta.pinHash='';await repo.apply({meta:{pinHash:''}});
+state.pinInput='';state.pinSetup1='';state.pinMode='';state.pinFails=0;state.pinMsg='';state.pinLocked=true;render();toast('비밀번호가 초기화되었습니다. 새로 설정하세요.')}
+
 // ── 렌더 (포커스 보존) ──
 function render(){if(!state.loaded){qs('app').innerHTML='<div class="app"><div class="card empty">앱을 준비하는 중입니다.</div></div>';return}
+// PIN 잠금 화면
+if(state.pinLocked){qs('app').innerHTML=pinScreenHtml();return}
 const fa=document.activeElement,fid=fa&&fa.id,ss=fa&&fa.selectionStart,se=fa&&fa.selectionEnd;
 const d=derive();qs('app').innerHTML=`<div class="app">${topBar()}<div class="stack">${banners()}${screenHtml(d)}</div>${navHtml()}</div>${modalHtml(d)}${state.toast?`<div class="toast">${esc(state.toast)}</div>`:''}${state.busy?`<div class="busy"><div>${esc(state.busy)}</div></div>`:''}`;
 if(state.modal&&state.modal.type==='usage')initSignPad();else signPad=null;
@@ -125,7 +176,7 @@ const deptGroups=groupBy(activeEmps,e=>e.deptKey).sort((a,b)=>a[0].localeCompare
 const empSection=!d.employees.length?'<div class="empty">직원이 없습니다.</div>':(
 deptGroups.map(([dept,emps])=>{const open=state.expandedDepts[dept];return `<div class="mgr-group"><div class="mgr-head" data-a="toggle-dept" data-dept="${esc(dept)}"><span class="mgr-toggle">${open?'▼':'▶'}</span><span class="mgr-dept">${esc(dept)}</span><span class="mgr-count">${emps.length}명</span></div>${open?'<div class="mgr-body">'+emps.map(manageRow).join('')+'</div>':''}</div>`}).join('')+
 (hiddenEmps.length?`<div class="mgr-group"><div class="mgr-head" data-a="toggle-dept" data-dept="__hidden__"><span class="mgr-toggle">${state.expandedDepts['__hidden__']?'▼':'▶'}</span><span class="mgr-dept" style="color:var(--muted)">숨김 직원</span><span class="mgr-count">${hiddenEmps.length}명</span></div>${state.expandedDepts['__hidden__']?'<div class="mgr-body">'+hiddenEmps.map(manageRow).join('')+'</div>':''}</div>`:''));
-return `<div class="card stack"><button class="btn-primary" data-a="add-employee">직원 추가</button><button class="btn-secondary" data-a="csv-import">직원 등록 (CSV 업로드)</button><button class="btn-secondary" data-a="export-csv">📋 장부 내보내기 (CSV)</button><button class="btn" data-a="export">💾 앱 백업 (JSON)</button><button class="btn" data-a="import">백업 복원</button><button class="btn-warn" data-a="new-month">새 달 시작 (초기화)</button></div><div class="card"><div class="name" style="font-size:20px">부서 목록 관리</div><div class="meta" style="margin-bottom:8px">${esc(org)} · <button class="small" data-a="edit-org" style="display:inline;min-height:auto;padding:2px 8px">기관명 변경</button></div><div style="line-height:2">${depts.map((d,i)=>`<span class="dept-tag">${esc(d)}<button data-a="remove-dept" data-idx="${i}">×</button></span>`).join('')}</div><div style="display:flex;gap:8px;margin-top:8px"><input id="newDeptInput" type="text" placeholder="새 부서명 입력" style="min-height:44px"><button class="btn-secondary" data-a="add-dept" style="min-height:44px;min-width:80px;flex-shrink:0">추가</button></div></div><div class="card"><div class="name" style="font-size:20px">직원 관리</div>${empSection}</div><div class="card stack"><div class="meta">저장 방식: ${esc(state.mode)}</div><div class="meta">마지막 백업: ${esc(state.data.meta.lastBackupAt?dt(state.data.meta.lastBackupAt):'없음')}</div><div class="meta">직원 수: ${d.active.length}명 (숨김 포함 ${d.employees.length}명)</div><div class="meta">거래 수: ${state.data.transactions.length}건</div><div class="meta">앱 버전: v${APP_VERSION}</div></div>`}
+return `<div class="card stack"><button class="btn-primary" data-a="add-employee">직원 추가</button><button class="btn-secondary" data-a="csv-import">직원 등록 (CSV 업로드)</button><button class="btn-secondary" data-a="export-csv">📋 장부 내보내기 (CSV)</button><button class="btn" data-a="export">💾 앱 백업 (JSON)</button><button class="btn" data-a="import">백업 복원</button><button class="btn-warn" data-a="new-month">새 달 시작 (초기화)</button></div><div class="card"><div class="name" style="font-size:20px">보안</div><div class="row"><div class="left"><div class="txn-title">비밀번호</div><div class="meta">앱을 열 때 4자리 비밀번호를 확인합니다</div></div><div class="right"><button class="small" data-a="change-pin">변경</button></div></div></div><div class="card"><div class="name" style="font-size:20px">부서 목록 관리</div><div class="meta" style="margin-bottom:8px">${esc(org)} · <button class="small" data-a="edit-org" style="display:inline;min-height:auto;padding:2px 8px">기관명 변경</button></div><div style="line-height:2">${depts.map((d,i)=>`<span class="dept-tag">${esc(d)}<button data-a="remove-dept" data-idx="${i}">×</button></span>`).join('')}</div><div style="display:flex;gap:8px;margin-top:8px"><input id="newDeptInput" type="text" placeholder="새 부서명 입력" style="min-height:44px"><button class="btn-secondary" data-a="add-dept" style="min-height:44px;min-width:80px;flex-shrink:0">추가</button></div></div><div class="card"><div class="name" style="font-size:20px">직원 관리</div>${empSection}</div><div class="card stack"><div class="meta">저장 방식: ${esc(state.mode)}</div><div class="meta">마지막 백업: ${esc(state.data.meta.lastBackupAt?dt(state.data.meta.lastBackupAt):'없음')}</div><div class="meta">직원 수: ${d.active.length}명 (숨김 포함 ${d.employees.length}명)</div><div class="meta">거래 수: ${state.data.transactions.length}건</div><div class="meta">앱 버전: v${APP_VERSION}</div></div>`}
 function manageRow(e){return `<div class="row"><div class="left"><div class="txn-title">${esc(e.name)}${e.isDeleted?'<span class="hidden-badge">숨김</span>':''}</div><div class="meta">${esc(e.dept||'부서 없음')} · 현재 잔액 ${money(e.balance)}</div>${e.note?`<div class="meta">${esc(e.note)}</div>`:''}</div><div class="right">${e.isDeleted?`<button class="small" data-a="restore-emp" data-id="${esc(e.id)}">복원</button>`:`<button class="small" data-a="edit-employee" data-id="${esc(e.id)}">수정</button><button class="small" data-a="topup" data-id="${esc(e.id)}">충전</button><button class="small" data-a="adjust" data-id="${esc(e.id)}">조정</button><button class="small" data-a="hide" data-id="${esc(e.id)}">숨김</button>`}</div></div>`}
 function navHtml(){return `<div class="nav"><button class="${state.screen==='home'?'active':''}" data-a="screen" data-screen="home">홈</button><button class="${state.screen==='history'?'active':''}" data-a="screen" data-screen="history">이력</button><button class="${state.screen==='settings'?'active':''}" data-a="screen" data-screen="settings">설정</button></div>`}
 
@@ -171,7 +222,10 @@ else if(a==='new-month'){await doNewMonth()}
 else if(a==='edit-org'){await editOrgName()}
 else if(a==='add-dept'){await addDept()}
 else if(a==='remove-dept'){await removeDept(Number(el.dataset.idx))}
-else if(a==='toggle-dept'){const dept=el.dataset.dept;state.expandedDepts[dept]=!state.expandedDepts[dept];render()}}
+else if(a==='toggle-dept'){const dept=el.dataset.dept;state.expandedDepts[dept]=!state.expandedDepts[dept];render()}
+else if(a==='pin-key'){await handlePinKey(el.dataset.key)}
+else if(a==='pin-reset'){await pinReset()}
+else if(a==='change-pin'){state.pinMode='change';state.pinLocked=true;state.pinInput='';state.pinSetup1='';state.pinMsg='';state.pinFails=0;render()}}
 function onInput(e){if(e.target.id==='searchInput'){state.search=e.target.value||'';if(!composing)render()}if(e.target.id==='historyFilter'){state.historyEmployeeId=e.target.value||'';render()}}
 
 // ── CRUD ──
