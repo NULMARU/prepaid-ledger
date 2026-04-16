@@ -462,8 +462,7 @@ if(!window.confirm('⚠️ 전체 초기화\n\n다음 데이터가 모두 삭제
 state.backupConfirmed=false;
 await exportBackup();
 if(!state.backupConfirmed){toast('백업이 확인되지 않았습니다. 초기화를 중단합니다.');return}
-const typed=window.prompt('초기화를 진행하려면 "초기화"를 입력하세요.','');
-if(typed===null||str(typed)!=='초기화'){toast('입력이 일치하지 않습니다. 초기화를 중단합니다.');return}
+if(!window.confirm('전체 초기화 최종 확인')){toast('초기화를 중단합니다.');return}
 const preservedMeta={
 orgName:state.data.meta.orgName||DEFAULT_ORG,
 departments:state.data.meta.departments?[...state.data.meta.departments]:[...DEFAULT_DEPTS],
