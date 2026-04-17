@@ -466,10 +466,17 @@ if(!backupOk){toast('백업 실패. 초기화가 취소되었습니다.');return
 // Step 3: 백업 확인
 const fn=backupFileName(true);
 if(!window.confirm('✅ 백업 파일이 다운로드 폴더에 저장되었습니다.\n\n파일명: '+fn+'\n\n이 파일이 실제로 저장되었는지 확인한 뒤 "확인"을 누르세요.\n초기화 이후에는 앱 내에서 복구할 수 없습니다.'))return;
-// Step 4: "초기화" 텍스트 입력 확인 (strict equality, trim 금지)
-const typed=window.prompt('정말로 초기화하시려면 아래 칸에 "초기화" 두 글자를 정확히 입력하세요.','');
+// Step 4: PIN 입력 확인 (PIN 미설정 시 빈값 엔터 허용)
+const storedPin=state.data.meta.pinHash||'';
+const pinMsg=storedPin?'정말로 초기화하시려면 현재 PIN 번호(4자리)를 입력하세요.':'PIN이 설정되어 있지 않습니다.\n그대로 엔터를 누르면 초기화가 진행됩니다.';
+const typed=window.prompt(pinMsg,'');
 if(typed===null)return;
-if(typed!=='초기화'){toast('입력이 일치하지 않아 초기화가 취소되었습니다.');return}
+if(storedPin){
+const typedHash=await hash(typed);
+if(typedHash!==storedPin){toast('PIN이 일치하지 않아 초기화가 취소되었습니다.');return}
+}else{
+if(typed!==''){toast('PIN이 설정되어 있지 않습니다. 빈칸 상태로 확인해 주세요.');return}
+}
 // Step 5: 삭제 실행
 setBusy('초기화 중입니다.');
 try{
