@@ -166,7 +166,7 @@
 <script>
 (()=>{
 'use strict';
-const APP='선입금대장',APP_VERSION='2.3.2',DB='prepaid-ledger-db',VER=2,LOCAL='prepaid-ledger-local',now=()=>Date.now(),qs=i=>document.getElementById(i);
+const APP='선입금대장',APP_VERSION='2.3.3',DB='prepaid-ledger-db',VER=2,LOCAL='prepaid-ledger-local',now=()=>Date.now(),qs=i=>document.getElementById(i);
 const DEFAULT_ORG='광진구청';
 const DEFAULT_DEPTS=['감사담당관','홍보담당관','행정지원과','자치행정과','민원여권과','재무과','스마트정보과','기획예산과','지역경제과','일자리청년과','세무1과','세무2과','문화예술과','체육진흥과','교육지원과','평생교육과','복지정책과','사회복지장애인과','어르신복지과','가정복지과','아동청소년과','도시안전과','청소과','환경과','가로경관과','주택과','주거사업과','도시계획과','건축과','부동산정보과','교통행정과','교통지도과','도로과','치수과','공원녹지과','보건정책과','보건위생과','보건의료과','건강관리과'];
 const state={loaded:false,mode:'준비 중',screen:'home',search:'',deptFilter:'',historyTab:'date',historyEmployeeId:'',modal:null,toast:'',toastTimer:null,busy:'',expandedDepts:{},pinLocked:true,pinInput:'',pinFails:0,pinMode:'',pinSetup1:'',pinMsg:'',backupConfirmed:false,data:{employees:[],transactions:[],meta:{lastBackupAt:null,orgName:DEFAULT_ORG,shopName:'',departments:[...DEFAULT_DEPTS]}}};
@@ -277,7 +277,7 @@ const deptGroups=groupBy(activeEmps,e=>e.deptKey).sort((a,b)=>a[0].localeCompare
 const empSection=!d.employees.length?'<div class="empty">직원이 없습니다.</div>':(
 deptGroups.map(([dept,emps])=>{const open=state.expandedDepts[dept];return `<div class="mgr-group"><div class="mgr-head" data-a="toggle-dept" data-dept="${esc(dept)}"><span class="mgr-toggle">${open?'▼':'▶'}</span><span class="mgr-dept">${esc(dept)}</span><span class="mgr-count">${emps.length}명</span></div>${open?'<div class="mgr-body">'+emps.map(manageRow).join('')+'</div>':''}</div>`}).join('')+
 (hiddenEmps.length?`<div class="mgr-group"><div class="mgr-head" data-a="toggle-dept" data-dept="__hidden__"><span class="mgr-toggle">${state.expandedDepts['__hidden__']?'▼':'▶'}</span><span class="mgr-dept" style="color:var(--muted)">숨김 직원</span><span class="mgr-count">${hiddenEmps.length}명</span></div>${state.expandedDepts['__hidden__']?'<div class="mgr-body">'+hiddenEmps.map(manageRow).join('')+'</div>':''}</div>`:''));
-return `<div class="card stack"><div class="name" style="font-size:14px;color:var(--muted)">직원 등록</div><button class="btn-primary" data-a="add-employee">직원개별등록</button><button class="btn-secondary" data-a="csv-import">직원등록(csv파일)</button></div><div class="card stack"><div class="name" style="font-size:14px;color:var(--muted)">데이터 관리</div><button class="btn-secondary" data-a="export-csv" style="text-align:left;padding:13px 16px">📋 장부 엑셀로 저장 <span style="font-size:11px;font-weight:400;color:var(--muted)">(직원별 잔액과 거래내역을 엑셀 파일로 만듭니다)</span></button><button class="btn" data-a="export" style="text-align:left;padding:13px 16px">💾 데이터 안전 저장 <span style="font-size:11px;font-weight:400;color:var(--muted)">(만일에 대비해 앱의 모든 데이터를 파일로 저장합니다)</span></button><button class="btn" data-a="import" style="text-align:left;padding:13px 16px">📂 저장한 데이터 불러오기 <span style="font-size:11px;font-weight:400;color:var(--muted)">(안전 저장해둔 파일로 데이터를 되돌립니다)</span></button><button class="btn-warn" data-a="full-reset" style="text-align:left;padding:13px 16px">🔄 전체 초기화 <span style="font-size:11px;font-weight:400;color:var(--muted)">(모든 직원, 거래, 비밀번호를 삭제하고 앱을 초기 상태로 되돌립니다)</span></button></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px"><div class="name" style="font-size:20px">직원 관리</div><div style="font-size:18px;font-weight:800;color:var(--text)">부서 ${deptGroups.length}개 · 직원 ${d.active.length}명</div></div>${empSection}</div><div class="card"><div class="name" style="font-size:20px">보안</div><div class="row"><div class="left"><div class="txn-title">비밀번호</div><div class="meta">앱을 열 때 4자리 비밀번호를 확인합니다</div></div><div class="right"><button class="small" data-a="change-pin">변경</button></div></div></div><div class="card"><div class="name" style="font-size:20px">우리 가게</div><div style="display:flex;gap:8px;margin-top:8px"><input id="shopNameInput" type="text" value="${esc(state.data.meta.shopName||'')}" placeholder="음식점 이름을 입력하세요" style="min-height:44px"><button class="btn-primary" data-a="save-shop" style="min-height:44px;min-width:80px;flex-shrink:0">저장</button></div><div class="meta" style="margin-top:6px">저장하면 홈 화면 상단에 표시됩니다</div></div><div class="card"><div class="name" style="font-size:20px">부서 목록 관리</div><div class="meta" style="margin-bottom:8px">${esc(org)} · <button class="small" data-a="edit-org" style="display:inline;min-height:auto;padding:2px 8px">기관명 변경</button></div><div style="line-height:2">${depts.map((d,i)=>`<span class="dept-tag">${esc(d)}<button data-a="remove-dept" data-idx="${i}">×</button></span>`).join('')}</div><div style="display:flex;gap:8px;margin-top:8px"><input id="newDeptInput" type="text" placeholder="새 부서명 입력" style="min-height:44px"><button class="btn-secondary" data-a="add-dept" style="min-height:44px;min-width:80px;flex-shrink:0">추가</button></div></div><div class="card stack"><div class="meta">저장 방식: ${esc(state.mode)}</div><div class="meta">마지막 백업: ${esc(state.data.meta.lastBackupAt?dt(state.data.meta.lastBackupAt):'없음')}</div><div class="meta">직원 수: ${d.active.length}명 (숨김 포함 ${d.employees.length}명)</div><div class="meta">거래 수: ${state.data.transactions.length}건</div><div class="meta">앱 버전: v${APP_VERSION}</div><div class="meta" style="margin-top:8px;font-size:11px;color:#98a2b3;text-align:center">© 2026년 광진구보건소(보건의료과). All rights reserved.</div></div>`}
+return `<div class="card stack"><div class="name" style="font-size:14px;color:var(--muted)">직원 등록</div><button class="btn-primary" data-a="add-employee">직원개별등록</button><button class="btn-secondary" data-a="csv-import">직원등록(csv파일)</button></div><div class="card stack"><div class="name" style="font-size:14px;color:var(--muted)">데이터 관리</div><button class="btn-secondary" data-a="export-csv" style="text-align:left;padding:13px 16px">📋 장부 엑셀로 저장 <span style="font-size:11px;font-weight:400;color:var(--muted)">(직원별 잔액과 거래내역을 엑셀 파일로 만듭니다)</span></button><button class="btn" data-a="export" style="text-align:left;padding:13px 16px">💾 데이터 안전 저장 <span style="font-size:11px;font-weight:400;color:var(--muted)">(만일에 대비해 앱의 모든 데이터를 파일로 저장합니다)</span></button><button class="btn" data-a="import" style="text-align:left;padding:13px 16px">📂 저장한 데이터 불러오기 <span style="font-size:11px;font-weight:400;color:var(--muted)">(안전 저장해둔 파일로 데이터를 되돌립니다)</span></button><button class="btn-warn" data-a="full-reset" style="text-align:left;padding:13px 16px">🔄 전체 초기화 <span style="font-size:11px;font-weight:400;color:var(--muted)">(모든 직원, 거래, 비밀번호를 삭제하고 앱을 초기 상태로 되돌립니다)</span></button></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px"><div class="name" style="font-size:20px">직원 관리</div><div style="font-size:18px;font-weight:800;color:var(--text)">부서 ${deptGroups.length}개 · 직원 ${d.active.length}명</div></div>${empSection}</div><div class="card"><div class="name" style="font-size:20px">보안</div><div class="row"><div class="left"><div class="txn-title">비밀번호</div><div class="meta">앱을 열 때 4자리 비밀번호를 확인합니다</div></div><div class="right"><button class="small" data-a="change-pin">변경</button></div></div></div><div class="card"><div class="name" style="font-size:20px">우리 가게</div><div style="display:flex;gap:8px;margin-top:8px"><input id="shopNameInput" type="text" value="${esc(state.data.meta.shopName||'')}" placeholder="음식점 이름을 입력하세요" style="min-height:44px"><button class="btn-primary" data-a="save-shop" style="min-height:44px;min-width:80px;flex-shrink:0">저장</button></div><div class="meta" style="margin-top:6px">저장하면 홈 화면 상단에 표시됩니다</div></div><div class="card"><div class="name" style="font-size:20px">부서 목록 관리</div><div class="meta" style="margin-bottom:8px">${esc(org)} · <button class="small" data-a="edit-org" style="display:inline;min-height:auto;padding:2px 8px">기관명 변경</button></div><div style="line-height:2">${depts.map((d,i)=>`<span class="dept-tag">${esc(d)}<button data-a="remove-dept" data-idx="${i}">×</button></span>`).join('')}</div><div style="display:flex;gap:8px;margin-top:8px"><input id="newDeptInput" type="text" placeholder="새 부서명 입력" style="min-height:44px"><button class="btn-secondary" data-a="add-dept" style="min-height:44px;min-width:80px;flex-shrink:0">추가</button></div></div><div class="card"><div class="name" style="font-size:20px">데이터 관리</div><div class="meta" style="margin:8px 0 12px;line-height:1.6">앱 사용을 중단하실 경우 아래 버튼으로 모든 데이터를 안전하게 삭제할 수 있습니다.<br>초기화 전에 최종 백업이 자동으로 생성됩니다.</div><button class="btn-danger" data-a="full-reset" style="width:100%;min-height:52px;font-size:16px;font-weight:700">전체 초기화</button></div><div class="card stack"><div class="meta">저장 방식: ${esc(state.mode)}</div><div class="meta">마지막 백업: ${esc(state.data.meta.lastBackupAt?dt(state.data.meta.lastBackupAt):'없음')}</div><div class="meta">직원 수: ${d.active.length}명 (숨김 포함 ${d.employees.length}명)</div><div class="meta">거래 수: ${state.data.transactions.length}건</div><div class="meta">앱 버전: v${APP_VERSION}</div><div class="meta" style="margin-top:8px;font-size:11px;color:#98a2b3;text-align:center">© 2026년 광진구보건소(보건의료과). All rights reserved.</div></div>`}
 function manageRow(e){return `<div class="row"><div class="left"><div class="txn-title">${esc(e.name)}${e.isDeleted?'<span class="hidden-badge">숨김</span>':''}</div><div class="meta">${esc(e.dept||'부서 없음')} · 현재 잔액 ${money(e.balance)}</div>${e.note?`<div class="meta">${esc(e.note)}</div>`:''}</div><div class="right">${e.isDeleted?`<button class="small" data-a="restore-emp" data-id="${esc(e.id)}">복원</button>`:`<button class="small" data-a="edit-employee" data-id="${esc(e.id)}">수정</button><button class="small" data-a="topup" data-id="${esc(e.id)}">충전</button><button class="small" data-a="adjust" data-id="${esc(e.id)}">조정</button><button class="small" data-a="hide" data-id="${esc(e.id)}">숨김</button>`}</div></div>`}
 function navHtml(){return `<div class="nav"><button class="${state.screen==='home'?'active':''}" data-a="screen" data-screen="home"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>홈</button><button class="${state.screen==='history'?'active':''}" data-a="screen" data-screen="history"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>이력</button><button class="${state.screen==='settings'?'active':''}" data-a="screen" data-screen="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>설정</button></div>`}
 
@@ -323,7 +323,6 @@ else if(a==='csv-import'){state.modal={type:'csv',rows:[]};render()}
 else if(a==='pick-csv'){qs('csvFile').value='';qs('csvFile').click()}
 else if(a==='exec-csv'){await executeCsvImport()}
 else if(a==='new-month'){await doNewMonth()}
-else if(a==='full-reset'){await doFullReset()}
 else if(a==='edit-org'){await editOrgName()}
 else if(a==='save-shop'){await saveShopName()}
 else if(a==='add-dept'){await addDept()}
@@ -331,7 +330,8 @@ else if(a==='remove-dept'){await removeDept(Number(el.dataset.idx))}
 else if(a==='toggle-dept'){const dept=el.dataset.dept;state.expandedDepts[dept]=!state.expandedDepts[dept];render()}
 else if(a==='pin-key'){await handlePinKey(el.dataset.key)}
 else if(a==='pin-reset'){await pinReset()}
-else if(a==='change-pin'){state.pinMode='change';state.pinLocked=true;state.pinInput='';state.pinSetup1='';state.pinMsg='';state.pinFails=0;render()}}
+else if(a==='change-pin'){state.pinMode='change';state.pinLocked=true;state.pinInput='';state.pinSetup1='';state.pinMsg='';state.pinFails=0;render()}
+else if(a==='full-reset'){await fullReset()}}
 function onInput(e){if(e.target.id==='searchInput'){state.search=e.target.value||'';if(!composing)render()}if(e.target.id==='deptFilterSelect'){state.deptFilter=e.target.value||'';render()}if(e.target.id==='historyFilter'){state.historyEmployeeId=e.target.value||'';render()}}
 
 // ── CRUD ──
@@ -344,7 +344,7 @@ async function restoreEmployee(id){const emp=state.data.employees.find(v=>v.id==
 async function voidUsage(id){const tx=state.data.transactions.find(v=>v.id===id&&v.type==='use');if(!tx)return;const already=state.data.transactions.some(v=>v.type==='void'&&v.targetTransactionId===tx.id);if(already){toast('이미 취소됨');return}const reason=window.prompt('취소 사유를 입력하세요.','');if(reason===null)return;if(!str(reason)){toast('취소 사유를 입력하세요.');return}const before=balanceOf(tx.employeeId),voidTx={id:uid(),employeeId:tx.employeeId,type:'void',amount:tx.amount,beforeBalance:before,afterBalance:before+tx.amount,reason:str(reason),note:'',targetTransactionId:tx.id,signatureData:'',signatureHash:'',createdAt:now()};try{await repo.apply({transactions:[voidTx]});upsertTx(voidTx);render();toast('사용 취소 완료')}catch(err){console.error(err);toast('오류')}}
 
 // ── 백업/복원 ──
-async function exportBackup(){setBusy('백업 파일을 만드는 중입니다.');try{const core={version:1,appName:APP,appVersion:APP_VERSION,exportedAt:now(),employees:state.data.employees,transactions:state.data.transactions,meta:{...state.data.meta}};const checksum=await hash(JSON.stringify(core));const payload={...core,checksum};const json=JSON.stringify(payload,null,2);const fn=backupFileName();const usedBridge=downloadFile(json,fn);clearBusy();if(usedBridge){toast('백업 파일을 저장하는 중입니다.')}else{const confirmed=window.confirm('백업 파일 다운로드가 시작되었습니다.\n\n파일이 실제로 저장된 것을 확인했습니까?');if(confirmed){const lastBackupAt=now();await repo.apply({meta:{lastBackupAt}});state.data.meta.lastBackupAt=lastBackupAt;state.backupConfirmed=true;render();toast('백업 저장 확인됨')}else{toast('백업 파일 저장을 확인해 주세요.')}}}catch(err){console.error(err);clearBusy();toast('백업 생성 오류')}}
+async function exportBackup(isFinal){setBusy('백업 파일을 만드는 중입니다.');try{const core={version:1,appName:APP,appVersion:APP_VERSION,exportedAt:now(),employees:state.data.employees,transactions:state.data.transactions,meta:{...state.data.meta}};const checksum=await hash(JSON.stringify(core));const payload={...core,checksum};const json=JSON.stringify(payload,null,2);const fn=backupFileName(isFinal);const usedBridge=downloadFile(json,fn);clearBusy();if(usedBridge){toast('백업 파일을 저장하는 중입니다.')}else{const confirmed=window.confirm('백업 파일 다운로드가 시작되었습니다.\n\n파일이 실제로 저장된 것을 확인했습니까?');if(confirmed){const lastBackupAt=now();await repo.apply({meta:{lastBackupAt}});state.data.meta.lastBackupAt=lastBackupAt;state.backupConfirmed=true;render();toast('백업 저장 확인됨')}else{toast('백업 파일 저장을 확인해 주세요.')}}}catch(err){console.error(err);clearBusy();toast('백업 생성 오류');if(isFinal)throw err}}
 
 // ── 장부 내보내기 (CSV) ──
 async function exportCsvLedger(){
@@ -391,7 +391,7 @@ const fn=`선입금장부_${org}_${today.getFullYear()}-${String(today.getMonth(
 a.href=url;a.download=fn;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 toast('장부 CSV 저장됨');
 }
-function backupFileName(){const d=new Date();return `선입금대장_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.json`}
+function backupFileName(isFinal){const d=new Date();const ymd=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;return isFinal?`선입금대장_최종백업_${ymd}.json`:`선입금대장_${ymd}.json`}
 function downloadFile(content,filename){if(typeof AndroidBridge!=='undefined'&&AndroidBridge.saveBackup){AndroidBridge.saveBackup(content,filename);return true}const blob=new Blob([content],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return false}
 window.onBackupSaved=async function(fn){const lastBackupAt=now();try{await repo.apply({meta:{lastBackupAt}});state.data.meta.lastBackupAt=lastBackupAt;state.backupConfirmed=true;render()}catch(e){console.error(e)}toast('백업 저장 완료: '+fn)};
 async function onRestoreFile(e){const file=e.target.files&&e.target.files[0];if(!file)return;setBusy('백업 파일을 읽는 중입니다.');try{const text=await file.text(),parsed=JSON.parse(text);if(!parsed||!Array.isArray(parsed.employees)||!Array.isArray(parsed.transactions))throw new Error('형식 오류');const core={version:parsed.version,appName:parsed.appName,appVersion:parsed.appVersion,exportedAt:parsed.exportedAt,employees:parsed.employees,transactions:parsed.transactions,meta:parsed.meta||{}};const checksum=parsed.checksum||'',calc=await hash(JSON.stringify(core));const data=norm({employees:parsed.employees,transactions:parsed.transactions,meta:parsed.meta||{}});const ec=data.employees.filter(v=>!v.isDeleted).length,tc=data.transactions.length;clearBusy();let warn='';if(checksum&&checksum!==calc)warn='\n\n⚠️ 체크섬 불일치. 파일이 수정되었을 수 있습니다.';const ok=window.confirm(`복원 미리보기\n\n직원 수: ${ec}명\n거래 수: ${tc}건${warn}\n\n현재 데이터를 이 백업으로 바꿀까요?`);if(!ok)return;const safety={employees:[...state.data.employees],transactions:[...state.data.transactions],meta:{...state.data.meta}};setBusy('복원 중입니다.');try{await repo.replaceAll(data);state.data=data;state.screen='home';state.search='';state.historyEmployeeId='';clearBusy();render();toast('백업 복원 완료')}catch(re){console.error(re);try{await repo.replaceAll(safety);state.data=safety}catch(e2){console.error('롤백 실패:',e2)}clearBusy();render();toast('복원 실패. 이전 데이터로 복구됨')}}catch(err){console.error(err);clearBusy();toast('백업 파일을 읽을 수 없습니다.')}finally{qs('restoreFile').value=''}}
@@ -453,36 +453,44 @@ newRows.forEach(r=>{const eid=uid();emps.push({id:eid,dept:r.dept,name:r.name,no
 topupRows.forEach(r=>{if(!r.existId||!r.amount)return;const before=balanceOf(r.existId);txs.push({id:uid(),employeeId:r.existId,type:'topup',amount:r.amount,beforeBalance:before,afterBalance:before+r.amount,reason:'CSV 추가 충전',note:dt(t),targetTransactionId:null,signatureData:'',signatureHash:'',createdAt:t+Math.random()})});
 await repo.apply({employees:emps,transactions:txs});emps.forEach(upsertEmp);txs.forEach(upsertTx);state.modal=null;clearBusy();render();toast(`${msg.join(' + ')} 완료`)}catch(err){console.error(err);clearBusy();toast('임포트 오류')}}
 
+// ── 전체 초기화 ──
+async function fullReset(){
+// Step 1: 1차 확인
+const ac=state.data.employees.filter(v=>!v.isDeleted).length;
+const tc=state.data.transactions.length;
+if(!window.confirm('⚠️ 전체 초기화\n\n현재 데이터가 모두 삭제됩니다.\n• 직원 정보 : '+ac+'명\n• 거래 내역 : '+tc+'건 (서명 이미지 포함)\n• PIN 비밀번호\n\n먼저 자동으로 최종 백업 파일을 저장한 뒤 초기화합니다.\n계속하시겠습니까?'))return;
+// Step 2: 자동 최종 백업
+let backupOk=false;
+try{await exportBackup(true);backupOk=true}catch(e){console.error('final backup failed:',e)}
+if(!backupOk){toast('백업 실패. 초기화가 취소되었습니다.');return}
+// Step 3: 백업 확인
+const fn=backupFileName(true);
+if(!window.confirm('✅ 백업 파일이 다운로드 폴더에 저장되었습니다.\n\n파일명: '+fn+'\n\n이 파일이 실제로 저장되었는지 확인한 뒤 "확인"을 누르세요.\n초기화 이후에는 앱 내에서 복구할 수 없습니다.'))return;
+// Step 4: "초기화" 텍스트 입력 확인 (strict equality, trim 금지)
+const typed=window.prompt('정말로 초기화하시려면 아래 칸에 "초기화" 두 글자를 정확히 입력하세요.','');
+if(typed===null)return;
+if(typed!=='초기화'){toast('입력이 일치하지 않아 초기화가 취소되었습니다.');return}
+// Step 5: 삭제 실행
+setBusy('초기화 중입니다.');
+try{
+const emptyData={employees:[],transactions:[],meta:{lastBackupAt:null,orgName:DEFAULT_ORG,shopName:'',departments:[...DEFAULT_DEPTS]}};
+await repo.replaceAll(emptyData);
+// Service Worker 캐시 삭제 (best-effort)
+if('caches' in window){try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(e){console.warn('cache clear:',e)}}
+// Service Worker 등록 해제 (best-effort)
+if('serviceWorker' in navigator){try{const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()))}catch(e){console.warn('sw unregister:',e)}}
+// state 초기화
+state.data=emptyData;
+state.pinLocked=true;state.pinInput='';state.pinSetup1='';state.pinMode='';state.pinFails=0;state.pinMsg='';
+state.screen='home';state.search='';state.deptFilter='';state.historyEmployeeId='';state.modal=null;state.expandedDepts={};
+clearBusy();render();
+// Step 6: 완료 안내
+window.alert('✅ 초기화 완료\n\n모든 앱 데이터가 삭제되었습니다.\n\n완전히 정리하시려면 추가로:\n1. 홈 화면에서 "선입금대장" 아이콘을 길게 눌러 삭제\n2. Chrome 설정 → 개인정보 보호 → 사이트 설정에서\n   nulmaru.github.io 항목 삭제\n\n어려우시면 광진구보건소로 문의해 주세요.')
+}catch(err){console.error(err);clearBusy();toast('초기화 중 오류가 발생했습니다.')}}
+
 // ── 새 달 시작 ──
 async function doNewMonth(){if(!state.data.transactions.length){toast('초기화할 거래 내역이 없습니다.');return}if(!window.confirm('⚠️ 새 달 시작\n\n1. 현재 데이터를 백업합니다\n2. 모든 거래내역을 삭제합니다\n3. 잔액이 0으로 초기화됩니다\n4. 직원 목록은 유지됩니다\n\n계속하시겠습니까?'))return;state.backupConfirmed=false;await exportBackup();if(!state.backupConfirmed){toast('백업이 확인되지 않았습니다. 백업 저장을 먼저 확인해 주세요.');return}if(!window.confirm('백업이 저장되었습니다.\n거래내역을 삭제합니다.\n\n⚠️ 이 작업은 되돌릴 수 없습니다.'))return;const data={...state.data,transactions:[]};try{await repo.replaceAll(data);state.data=data;render();toast('새 달 시작 · 거래내역 초기화됨')}catch(err){console.error(err);toast('초기화 오류')}}
 
-// ── 전체 초기화 ──
-async function doFullReset(){
-if(!window.confirm('⚠️ 전체 초기화\n\n다음 데이터가 모두 삭제됩니다:\n• 모든 직원 정보\n• 모든 거래 내역 (사용/충전/조정/서명)\n• 비밀번호 (PIN)\n\n기관명, 부서 목록, 음식점 이름은 유지됩니다.\n\n계속하시겠습니까?'))return;
-if(!window.confirm('전체 초기화 최종 확인'))return;
-state.backupConfirmed=false;
-await exportBackup();
-if(!state.backupConfirmed){toast('백업이 확인되지 않았습니다. 초기화를 중단합니다.');return}
-const preservedMeta={
-orgName:state.data.meta.orgName||DEFAULT_ORG,
-departments:state.data.meta.departments?[...state.data.meta.departments]:[...DEFAULT_DEPTS],
-shopName:'',
-pinHash:'',
-lastBackupAt:null,
-lastResetAt:now(),
-previousShopName:state.data.meta.shopName||''
-};
-const emptyData={employees:[],transactions:[],meta:preservedMeta};
-try{
-await repo.replaceAll(emptyData);
-state.data=emptyData;
-state.pinLocked=true;
-state.pinInput='';state.pinSetup1='';state.pinMode='';state.pinFails=0;state.pinMsg='';
-state.screen='home';state.search='';state.deptFilter='';state.historyEmployeeId='';
-state.backupConfirmed=false;
-render();
-toast('전체 초기화 완료 · 비밀번호를 새로 설정하세요');
-}catch(err){console.error(err);toast('전체 초기화 중 오류')}}
 
 // ── 부서 관리 ──
 async function editOrgName(){const cur=state.data.meta.orgName||DEFAULT_ORG;const v=window.prompt('기관명을 입력하세요.',cur);if(v===null||!str(v))return;state.data.meta.orgName=str(v);await repo.apply({meta:{orgName:state.data.meta.orgName}});render();toast('기관명 변경됨')}
