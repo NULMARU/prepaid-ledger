@@ -459,10 +459,10 @@ async function doNewMonth(){if(!state.data.transactions.length){toast('초기화
 // ── 전체 초기화 ──
 async function doFullReset(){
 if(!window.confirm('⚠️ 전체 초기화\n\n다음 데이터가 모두 삭제됩니다:\n• 모든 직원 정보\n• 모든 거래 내역 (사용/충전/조정/서명)\n• 비밀번호 (PIN)\n\n기관명, 부서 목록, 음식점 이름은 유지됩니다.\n\n계속하시겠습니까?'))return;
+if(!window.confirm('전체 초기화 최종 확인'))return;
 state.backupConfirmed=false;
 await exportBackup();
 if(!state.backupConfirmed){toast('백업이 확인되지 않았습니다. 초기화를 중단합니다.');return}
-if(!window.confirm('전체 초기화 최종 확인')){toast('초기화를 중단합니다.');return}
 const preservedMeta={
 orgName:state.data.meta.orgName||DEFAULT_ORG,
 departments:state.data.meta.departments?[...state.data.meta.departments]:[...DEFAULT_DEPTS],
